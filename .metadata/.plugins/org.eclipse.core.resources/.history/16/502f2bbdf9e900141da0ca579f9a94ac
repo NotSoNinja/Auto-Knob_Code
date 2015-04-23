@@ -31,24 +31,20 @@ int main(void) {
 	P1DIR &= 0xF9;							// Set P1.1 and P1.2 as inputs
 	P1REN &= 0xF9;							// Enable pull up/down resistor
 	P1OUT |= 0x06;							// Set pull-up
-
 	/* Configure ADC10 */
 	ConfigureAdc();
-
 	/* Configure Timer */
 	TACTL = TASSEL_2 + MC_2 + ID_3 + TAIE;	// Source: SMCLK/4, Mode: UP/DOWN-MODE, Interrupts Enabled
 	TACCRO = 32768;							// Counts up to 32768, then back down
 	//CCR0 = 3 seconds						// Capture/Compare register, but timer keeps counting up.
-
 	/* Configure Interrupts */
 	P1IES |=0x06;							// Set High->Low transition
 	P1IE |= 0x06;							// Enable interrupts for P1.1 and P1.2
 	P1IFG &= 0xF9;							// Clear Pending Interrupts
 	TACCTL0 = CCIE;							// CCR0 interrupt enabled (interrupt at peak and trough)
 
-	/* Low Power Mode and Global Settings */
-	_BIS_SR(GIE);							// Global Interrupt Enable
 	//TODO enter low power mode here
+	_BIS_SR(GIE);							// Global Interrupt Enable
 
 	while(1){
 		//Loop forever, we do  everything with interrupts!
@@ -59,8 +55,9 @@ int main(void) {
 
 void ConfigureAdc(void){
 	ADC10CTL1 = INCH_0 + ADC10DIV_3;         // Channel 0, ADC10CLK/3, Single-Channel/SingleConversion (Default)
-	ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON + ADC10IE + ENC;  // Vcc & Vss as reference, Sample and hold for 64 Clock cycles, ADC on, ADC interrupt enable, enable conversion
+	ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON + ADC10IE;  // Vcc & Vss as reference, Sample and hold for 64 Clock cycles, ADC on, ADC interrupt enable
 	ADC10AE0 |= BIT0;                         // ADC input enable P1.0
+	//TODO Enable ADC10 Interrupts
 }
 
 // Port 1 interrupt service routine
@@ -101,6 +98,7 @@ __interrupt void Port_1(void){
 	P1IES ^= 0x06;				// Toggle rising/falling edge
 }
 
+//TODO Long Timer ISR
 // Timer A0 interrupt service routine
 #pragma vector=TIMERA0_VECTOR
 __interrupt void Timer_A (void){
@@ -108,25 +106,14 @@ __interrupt void Timer_A (void){
 	/* Reset the timer and check battery at the same time. */
 	if(timer > 32768){
 		timer = 0;
-		ADC10CTL0 |= ADC10SC;
+		//TODO Start ADC10 Conversion
 	}
 }
 
 // ADC10 interrupt service routine
 #pragma vector=ADC10_VECTOR
 __interrupt void ADC10_ISR (void){
-	//TODO Compare results from ADC10MEM < 0x00; (replace 0x00 with actual value before implementation)
+	//Compare results
 }
 
 //TODO latch/unlatch functions
-void unlatch(state power){
-	if(power == LOCKED){
-		/* Pull Latch as far back as possible */
-	}else{
-		/* Don't engage catch */
-	}
-}
-
-void latch(){
-	/* Undo whatever output is done in unlatch */
-}
