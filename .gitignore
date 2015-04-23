@@ -74,3 +74,13 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# =========================
+# Code Composer Files
+# =========================
+
+Debug
+Release
+.xdchelp
+.config
+.launches
