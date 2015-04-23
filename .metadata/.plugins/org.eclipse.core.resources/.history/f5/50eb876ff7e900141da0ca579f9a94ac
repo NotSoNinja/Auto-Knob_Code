@@ -45,7 +45,7 @@ int main(void) {
 	//TODO Enable ADC10 Interrupts
 
 	//TODO enter low power mode here
-	_BIS_SR(GIE);							// Global Interrupt Enable
+	_BIS_SR(GIE);					// Enter LPM0 w/ interrupt
 
 	while(1){
 		//Loop forever, we do  everything with interrupts!

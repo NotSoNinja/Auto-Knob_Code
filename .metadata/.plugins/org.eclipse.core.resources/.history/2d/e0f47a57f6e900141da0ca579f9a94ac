@@ -36,16 +36,14 @@ int main(void) {
 	/* Configure Timer */
 	TACTL = TASSEL_2 + MC_1 + ID_3 + TAIE;	// Source: SMCLK/4, Mode: UP-MODE, Interrupts Enabled
 	TACCRO = 32768;							// Counts up to 32768
-	//CCR0 = 3 seconds						// Capture/Compare register, but timer keeps counting up.
 	/* Configure Interrupts */
 	P1IES |=0x06;							// Set High->Low transition
 	P1IE |= 0x06;							// Enable interrupts for P1.1 and P1.2
 	P1IFG &= 0xF9;							// Clear Pending Interrupts
 	CCTL0 = CCIE;							// CCR0 interrupt enabled
-	//TODO Enable ADC10 Interrupts
 
 	//TODO enter low power mode here
-	_BIS_SR(GIE);							// Global Interrupt Enable
+	//_BIS_SR(CPUOFF + GIE);					// Enter LPM0 w/ interrupt
 
 	while(1){
 		//Loop forever, we do  everything with interrupts!
@@ -54,11 +52,11 @@ int main(void) {
 	return 0;
 }
 
-void ConfigureAdc(void){
+void ConfigureAdc(void)
+{
 	ADC10CTL1 = INCH_0 + ADC10DIV_3;         // Channel 0, ADC10CLK/3, Single-Channel/SingleConversion (Default)
 	ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON + ADC10IE;  // Vcc & Vss as reference, Sample and hold for 64 Clock cycles, ADC on, ADC interrupt enable
 	ADC10AE0 |= BIT0;                         // ADC input enable P1.0
-	//TODO Enable ADC10 Interrupts
 }
 
 // Port 1 interrupt service routine
@@ -100,15 +98,6 @@ __interrupt void Port_1(void){
 }
 
 //TODO Long Timer ISR
-// Timer A0 interrupt service routine
-#pragma vector=TIMERA0_VECTOR
-__interrupt void Timer_A (void){
-	timer++;
-	if(timer > 32768){
-		timer = 0;
-		//TODO Start ADC10 Conversion
-	}
-}
 
 /* Reset the timer and check battery at the same time. */
 
