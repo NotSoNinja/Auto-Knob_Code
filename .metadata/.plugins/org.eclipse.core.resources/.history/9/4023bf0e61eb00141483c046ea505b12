@@ -1,0 +1,10 @@
+#include <msp430.h>
+#include "P1Interrupt.h"
+
+void configureP1Interrupts(){
+	P1SEL &= 0xF9;							// Ensure I/O function set for P1.1 and P1.2
+	P1SEL2 &= 0xF9;							// Ensure I/O function set for P1.1 and P1.2
+	P1DIR &= 0xF9;							// Set P1.1 and P1.2 as inputs
+	P1REN &= 0xF9;							// Enable pull up/down resistor
+	P1OUT |= 0x06;							// Set pull-up
+}

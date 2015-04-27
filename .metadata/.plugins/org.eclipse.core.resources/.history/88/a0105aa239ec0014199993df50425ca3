@@ -1,0 +1,67 @@
+#include <msp430.h>
+#include "P1Interrupt.h"
+
+void configureAdc();
+
+int main(void) {
+	WDTCTL = WDTPW | WDTHOLD;		// Stop watchdog timer
+	configureP1Interrupts();
+	configureAdc();
+	_BIS_SR(GIE);
+
+
+	return 0;
+}
+
+void configureAdc(){
+	ADC10CTL1 = INCH_0 + ADC10DIV_3;         // Channel 0, ADC10CLK/3, Single-Channel/SingleConversion (Default)
+	ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON + ADC10IE;  // Vcc & Vss as reference, Sample and hold for 64 Clock cycles, ADC on, ADC interrupt enable, enable conversion
+	ADC10AE0 |= BIT0;                         // ADC input enable P1.0
+}
+
+// ADC10 interrupt service routine
+#pragma vector=ADC10_VECTOR
+__interrupt void ADC10_ISR (void){
+	//TODO Compare results from ADC10MEM < 0x00; (replace 0x00 with actual value before implementation)
+	P1OUT ^= 0x01;				// Toggle P1.0 using exclusive-OR
+}
+
+// Port 1 interrupt service routine
+#pragma vector=PORT1_VECTOR
+__interrupt void Port_1(void){
+	P1IFG &= ~BIT3;				// Clear Interrupt Flag
+	ADC10CTL0 |= ADC10SC + ENC;
+//	P1OUT ^= 0x01;				// Toggle P1.0 using exclusive-OR
+	/* Process Inputs */
+//	if(!(P1IFG & 0x06)){
+//		/* start timers */
+//		if((P1IN & 0x02) && currentState == LATCHED){
+//			lockTime = timer;	// If interior held, start lock timer
+//		}
+//		if((P1IN & 0x04) && currentState == LOCKED){
+//			unlockTime = timer;	// If exterior held, start unlock timer
+//		}
+//	}else{
+//		/* check timers */
+//		if((P1IN & 0x02)){
+//			if(lockTime && timer - lockTime >= LOCK_TIME){
+//				currentState = 1;		// Set the lock toggle
+//			}else{
+//				//TODO unlatch
+//			}
+//			lockTime = 0;
+//		}
+//		if(!currentState && (P1IN & 0x04)){
+//			//TODO unlatch
+//		}else if((P1IN & 0x04) && currentState == LOCKED){
+//			if(unlockTime && timer - unlockTime >= UNLOCK_TIME){
+//				//TODO unlatch
+//				currentState = 0;		// Reset the lock toggle
+//			}else{
+//				//Door remains locked
+//			}
+//			unlockTime = 0;
+//		}
+//	}
+//	P1IES ^= BIT3;				// Toggle rising/falling edge
+}

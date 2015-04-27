@@ -1,0 +1,34 @@
+#include <msp430.h> 
+//#include "P1Interrupt.h"
+
+
+int main(void)
+{
+WDTCTL = WDTPW + WDTHOLD; // Stop watchdog timer
+P1DIR |= (BIT0); // Set P1.0 to output direction
+// P1.3 must stay at input
+P1OUT &= ~(BIT0); // set P1.0 to 0 (LED OFF)
+P1IE |= BIT3; // P1.3 interrupt enabled
+
+P1IFG &= ~BIT3; // P1.3 IFG cleared
+
+//__enable_interrupt(); // enable all interrupts
+
+__BIS_SR(GIE);
+
+for(;;)
+{}
+}
+
+
+// Port 1 interrupt service routine
+#pragma vector=PORT1_VECTOR
+__interrupt void Port_1(void)
+{
+P1OUT ^= (BIT0); // P1.0 = toggle
+P1IFG &= ~BIT3; // P1.3 IFG cleared
+P1IES ^= BIT3; // toggle the interrupt edge,
+// the interrupt vector will be called
+// when P1.3 goes from HitoLow as well as
+// LowtoHigh
+}

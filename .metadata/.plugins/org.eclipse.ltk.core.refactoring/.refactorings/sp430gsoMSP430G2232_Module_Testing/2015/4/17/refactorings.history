@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;sp430gsoMSP430G2232_Module_Testing/P1Interrupt&apos; to &apos;P1Interrupt.c&apos;" description="Rename resource &apos;P1Interrupt&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="P1Interrupt" name="P1Interrupt.c" stamp="1429975557481" updateReferences="true"/>
+</session>

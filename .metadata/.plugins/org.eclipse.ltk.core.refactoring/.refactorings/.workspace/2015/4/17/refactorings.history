@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete resource &apos;sp430gsoMSP430G2232_Module_Testing/P1Interrupt.h&apos;" deleteContents="false" description="Delete resource &apos;sp430gsoMSP430G2232_Module_Testing/P1Interrupt.h&apos;" element1="/sp430gsoMSP430G2232_Module_Testing/P1Interrupt.h" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1429975589655"/>
+</session>

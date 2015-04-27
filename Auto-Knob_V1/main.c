@@ -8,7 +8,7 @@
 #define BAT_MONITOR 0x01;					// P1.0 is the Battery Voltage Monitor
 
 enum state{
-	LOCKED, UNLOCKED, LATCHED;
+	LOCKED, UNLOCKED, LATCHED, LOW_POWER;
 };
 
 /* Globals */
@@ -16,7 +16,7 @@ unsigned long int timer = 0;				// Timer, to be incremented every second?  or su
 unsigned long int lockTime = 0;				// Semi-Constant, for computing if lock requirement is met
 unsigned long int unlockTime = 0;			// Semi-Constant, for computing if unlock requirement is met
 char mask = 0x00;							// Bitmask.  Not finished yet, may change
-state currentState = LATCHED;				// ENUM to hold state for state machine
+state currentState;							// ENUM to hold state for state machine
 
 /*
  * main.c
@@ -27,9 +27,9 @@ int main(void) {
 	/* Configure Input Pins */
 	P1SEL |= 0x01;							// Set P1.0 to A0
 	P1SEL &= 0xF9;							// Ensure I/O function set for P1.1 and P1.2
-	P1SEL2 &= 0xF9;							// Ensure I/O function set for P1.1 and P1.2
+//	P1SEL2 &= 0xF9;							// Ensure I/O function set for P1.1 and P1.2
 	P1DIR &= 0xF9;							// Set P1.1 and P1.2 as inputs
-	P1REN &= 0xF9;							// Enable pull up/down resistor
+	P1REN |= 0x06;							// Enable pull up/down resistor
 	P1OUT |= 0x06;							// Set pull-up
 
 	/* Configure ADC10 */
@@ -45,6 +45,10 @@ int main(void) {
 	P1IE |= 0x06;							// Enable interrupts for P1.1 and P1.2
 	P1IFG &= 0xF9;							// Clear Pending Interrupts
 	TACCTL0 = CCIE;							// CCR0 interrupt enabled (interrupt at peak and trough)
+
+	/* Set servo to latched position */
+	//TODO the above
+	state = LATCHED;
 
 	/* Low Power Mode and Global Settings */
 	_BIS_SR(GIE);							// Global Interrupt Enable
@@ -79,18 +83,21 @@ __interrupt void Port_1(void){
 	}else{
 		/* check timers */
 		if((P1IN & 0x02)){
-			if(lockTime && timer - lockTime >= LOCK_TIME){
-				currentState = 1;		// Set the lock toggle
+			if(lockTime && (timer - lockTime >= LOCK_TIME)){
+				currentState = LOCKED;		// Set the lock toggle
 			}else{
-				//TODO unlatch
+				unlatch(UNLOCKED);
+				state = UNLOCKED;
 			}
 			lockTime = 0;
 		}
-		if(!currentState && (P1IN & 0x04)){
-			//TODO unlatch
+		if((currentState == LATCHED) && (P1IN & 0x04)){
+			unlatch(UNLOCKED);
+			state = UNLOCKED;
 		}else if((P1IN & 0x04) && currentState == LOCKED){
 			if(unlockTime && timer - unlockTime >= UNLOCK_TIME){
-				//TODO unlatch
+				unlatch(UNLOCKED);
+				state = UNLOCKED;
 				currentState = 0;		// Reset the lock toggle
 			}else{
 				//Door remains locked
@@ -115,12 +122,16 @@ __interrupt void Timer_A (void){
 // ADC10 interrupt service routine
 #pragma vector=ADC10_VECTOR
 __interrupt void ADC10_ISR (void){
-	//TODO Compare results from ADC10MEM < 0x00; (replace 0x00 with actual value before implementation)
+	ADC10CTL0 &= ~ADC10IFG;				// Clear Interrupt Flag
+	/* Check if low battery voltage */
+	if(ADC10MEM < 0x00){
+		unlatch(LOW_POWER);				// If low battery, unlatch permanently
+	}
 }
 
 //TODO latch/unlatch functions
 void unlatch(state power){
-	if(power == LOCKED){
+	if(power == LOW_POWER){
 		/* Pull Latch as far back as possible */
 	}else{
 		/* Don't engage catch */
@@ -129,4 +140,12 @@ void unlatch(state power){
 
 void latch(){
 	/* Undo whatever output is done in unlatch */
+}
+
+/* absolute value */
+int abs(int i){
+	if(i < 0){
+		i *= -1;
+	}
+	return i;
 }
