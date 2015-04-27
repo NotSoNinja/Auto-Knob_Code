@@ -87,14 +87,17 @@ __interrupt void Port_1(void){
 				currentState = LOCKED;		// Set the lock toggle
 			}else{
 				unlatch(UNLOCKED);
+				state = UNLOCKED;
 			}
 			lockTime = 0;
 		}
 		if((currentState == LATCHED) && (P1IN & 0x04)){
 			unlatch(UNLOCKED);
+			state = UNLOCKED;
 		}else if((P1IN & 0x04) && currentState == LOCKED){
 			if(unlockTime && timer - unlockTime >= UNLOCK_TIME){
 				unlatch(UNLOCKED);
+				state = UNLOCKED;
 				currentState = 0;		// Reset the lock toggle
 			}else{
 				//Door remains locked
@@ -110,14 +113,7 @@ __interrupt void Port_1(void){
 __interrupt void Timer_A (void){
 	timer++;
 	/* Reset the timer and check battery at the same time. */
-	if(timer > 54000){
-		/* Account for running timers */
-		if(lockTime){
-			locktime -= timer;
-		}
-		if(unlockTime){
-			unlockTime -= timer;
-		}
+	if(timer > 32768){
 		timer = 0;
 		ADC10CTL0 |= ADC10SC;
 	}
@@ -135,18 +131,15 @@ __interrupt void ADC10_ISR (void){
 
 //TODO latch/unlatch functions
 void unlatch(state power){
-	state = power;
-	/* Pull Latch as far back as possible */
-	//15 32768Hz Periods
-	//repeated at 450Hz (73 periods)
-
+	if(power == LOW_POWER){
+		/* Pull Latch as far back as possible */
+	}else{
+		/* Don't engage catch */
+	}
 }
 
 void latch(){
-	state = LATCHED;
 	/* Undo whatever output is done in unlatch */
-	//43 32768Hz Periods
-	//repeated at 450Hz (73 periods)
 }
 
 /* absolute value */
@@ -156,40 +149,3 @@ int abs(int i){
 	}
 	return i;
 }
-
-
-// Demar's Code
-///*
-// * Enable a PWM-controlled buzzer on P7.5
-// * This function makes use of TimerB0.
-// */
-//void BuzzerOn(void)
-//{
-//	// Initialize PWM output on P7.5, which corresponds to TB0.3
-//	P2SEL |= BIT5; // Select peripheral output mode for P7.5
-//	P2DIR |= BIT5;
-//
-//	TB0CTL  = (TBSSEL__ACLK|ID__1|MC__UP);  // Configure Timer B0 to use ACLK, divide by 1, up mode
-//	TB0CTL  &= ~TBIE; 						// Explicitly Disable timer interrupts for safety
-//
-//	// Now configure the timer period, which controls the PWM period
-//	// Doing this with a hard coded values is NOT the best method
-//	// I do it here only as an example. You will fix this in Lab 2.
-//	TB0CCR0   = 128; 					// Set the PWM period in ACLK ticks
-//	TB0CCTL0 &= ~CCIE;					// Disable timer interrupts
-//
-//	// Configure CC register 3, which is connected to our PWM pin TB0.3
-//	TB0CCTL3  = OUTMOD_7;					// Set/reset mode for PWM
-//	TB0CCTL3 &= ~CCIE;						// Disable capture/compare interrupts
-//	TB0CCR3   = TB0CCR0/2; 					// Configure a 50% duty cycle
-//}
-//
-///*
-// * Disable the buzzer on P7.5
-// */
-//void BuzzerOff(void)
-//{
-//	// Disable both capture/compare periods
-//	TB0CCTL0 = 0;
-//	TB0CCTL3 = 0;
-//}

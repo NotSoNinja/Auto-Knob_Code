@@ -109,15 +109,15 @@ __interrupt void Port_1(void){
 #pragma vector=TIMERA0_VECTOR
 __interrupt void Timer_A (void){
 	timer++;
+	/* Account for running timers */
+	if(lockTime){
+		locktime -= timer;
+	}
+	if(unlockTime){
+		unlockTime -= timer;
+	}
 	/* Reset the timer and check battery at the same time. */
 	if(timer > 54000){
-		/* Account for running timers */
-		if(lockTime){
-			locktime -= timer;
-		}
-		if(unlockTime){
-			unlockTime -= timer;
-		}
 		timer = 0;
 		ADC10CTL0 |= ADC10SC;
 	}
