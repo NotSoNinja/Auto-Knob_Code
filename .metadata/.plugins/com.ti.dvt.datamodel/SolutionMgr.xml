@@ -5,7 +5,7 @@
    <string>defaultSolution</string>
    <void method="set">
     <object idref="SolutionManager$PersistState0"/>
-    <string>F:\git\AutoKnobCode\dvt\AnalysisSolutionsTemp\AnalysisSolution1430154064532\null</string>
+    <string>F:\Program Files\ti\ccsv6\ccs_base\dvt_4.0.0.201501151820\FunctionProfile\solutions\null - CoverageProfile</string>
    </void>
   </void>
  </object>
@@ -14,13 +14,13 @@
  <void id="ArrayList0" method="get">
   <object idref="SolutionManager$PersistState0"/>
   <void method="add">
+   <string>F:\git\AutoKnobCode\dvt\AnalysisSolutionsTemp\AnalysisSolution1430182725025\null</string>
+  </void>
+  <void method="add">
    <string>F:\Program Files\ti\ccsv6\ccs_base\dvt_4.0.0.201501151820\FunctionProfile\solutions\null - FunctionProfile</string>
   </void>
   <void method="add">
    <string>F:\Program Files\ti\ccsv6\ccs_base\dvt_4.0.0.201501151820\FunctionProfile\solutions\null - CoverageProfile</string>
-  </void>
-  <void method="add">
-   <string>F:\git\AutoKnobCode\dvt\AnalysisSolutionsTemp\AnalysisSolution1430154064532\null</string>
   </void>
   <void method="add">
    <string>F:\Program Files\ti\ccsv6\ccs_base\dvt_4.0.0.201501151820\CodeGen\solutions\CodeGenCoverage</string>
