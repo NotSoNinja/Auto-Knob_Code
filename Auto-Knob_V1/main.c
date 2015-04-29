@@ -6,6 +6,7 @@
 #define INT_SENSOR 0x04						// P1.2 is the Interior Sensor
 #define EXT_SENSOR 0x02						// P1.1 is the Exterior Sensor
 #define SERVO 0x40							// P1.6 (TA0.1) is the Servo
+#define LED 0x08							// P2.3 is the (blue) LED
 #define BAT_MONITOR 0x01					// P1.0 is the Battery Voltage Monitor
 
 enum state{
@@ -17,6 +18,12 @@ unsigned long int timer = 0;				// Timer, to be incremented every second?  or su
 long int lockTime = 0;						// Semi-Constant, for computing if lock requirement is met
 long int unlockTime = 0;					// Semi-Constant, for computing if unlock requirement is met
 state currentState;							// ENUM to hold state for state machine
+
+/* Function Stubs for the Betterment of Humanity */
+void ConfigureAdc(void);
+void unlatch(state power);
+void latch();
+void pwm(int pulseWidth);
 
 /*
  * main.c
@@ -32,9 +39,10 @@ int main(void) {
 	P1OUT |= 0x06;							// Set pull-up
 
 	/* Configure Output Pins */
-	P1DIR |= BIT6;             				// P1.6 to output
-	P1SEL |= BIT6;             				// P1.6 to TA0.1
-
+	P1DIR |= SERVO;             				// P1.6 to output (Package pin 14)
+	P1SEL |= SERVO;             				// P1.6 to TA0.1
+	P2SEL &= ~LED;								// P2.3 is Digital I/O
+	P2DIR |= LED;								// P2.3 is an output
 
 	/* Configure ADC10 */
 	ConfigureAdc();
@@ -47,14 +55,14 @@ int main(void) {
 	P1IES |=0x06;							// Set High->Low transition
 	P1IE |= 0x06;							// Enable interrupts for P1.1 and P1.2
 	P1IFG &= 0xF9;							// Clear Pending Interrupts
-	TACCTL0 = CCIE;							// CCR0 interrupt enabled
+	TACCTL0 = CCIE;							// CCR0 interrupt enabled (hopefully not CCR1)
 
 	/* Set servo to latched position */
-	//TODO the above
-	state = LATCHED;
+	latch();
 
 	/* Low Power Mode and Global Settings */
 	_BIS_SR(GIE);							// Global Interrupt Enable
+//	_BIS_SR(LPM0_bits);						// Enter Low Power Mode
 	//TODO enter low power mode here
 
 	while(1){
@@ -77,11 +85,12 @@ __interrupt void Port_1(void){
 	/* Process Inputs */
 	if(!(P1IFG & 0x06)){
 		/* start timers */
-		if((P1IN & 0x02) && currentState == LATCHED){
+		if((P1IN & 0x02) && (currentState == LATCHED)){
 			lockTime = timer;	// If interior held, start lock timer
 		}
-		if((P1IN & 0x04) && currentState == LOCKED){
+		if((P1IN & 0x04) && (currentState == LOCKED)){
 			unlockTime = timer;	// If exterior held, start unlock timer
+			P2OUT |= LED;		// Turn on the LED
 		}
 	}else{
 		/* check timers */
@@ -96,12 +105,13 @@ __interrupt void Port_1(void){
 		if((currentState == LATCHED) && (P1IN & 0x04)){
 			unlatch(UNLOCKED);
 		}else if((P1IN & 0x04) && currentState == LOCKED){
-			if(unlockTime && timer - unlockTime >= UNLOCK_TIME){
+			if(unlockTime && (timer - unlockTime >= UNLOCK_TIME)){
 				unlatch(UNLOCKED);
 				currentState = 0;		// Reset the lock toggle
 			}else{
-				//Door remains locked
+										//Door remains locked
 			}
+			P2OUT &= ~LED;				// Turn the LED off
 			unlockTime = 0;
 		}
 	}
@@ -148,7 +158,7 @@ void latch(){
 	state = LATCHED;
 	/* Undo whatever output is done in unlatch */
 	//43 32768Hz Periods
-	pwm(43)
+	pwm(43);
 }
 
 void pwm(int pulseWidth){
