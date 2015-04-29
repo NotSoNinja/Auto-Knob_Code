@@ -1,12 +1,11 @@
 #include <msp430.h> 
 
 /* Constants */
-#define LOCK_TIME 1346						// Time in timer periods (450Hz)
-#define UNLOCK_TIME 2244					// Time in timer periods (450Hz)
-#define INT_SENSOR 0x04						// P1.2 is the Interior Sensor
-#define EXT_SENSOR 0x02						// P1.1 is the Exterior Sensor
-#define SERVO 0x40							// P1.6 (TA0.1) is the Servo
-#define BAT_MONITOR 0x01					// P1.0 is the Battery Voltage Monitor
+#define LOCK_TIME 300						// Time in timer periods (32768Hz)
+#define UNLOCK_TIME 500						// Time in timer periods (32768Hz)
+#define INT_SENSOR 0x04;					// P1.2 is the Interior Sensor
+#define EXT_SENSOR 0x02;					// P1.1 is the Exterior Sensor
+#define BAT_MONITOR 0x01;					// P1.0 is the Battery Voltage Monitor
 
 enum state{
 	LOCKED, UNLOCKED, LATCHED, LOW_POWER;
@@ -14,8 +13,9 @@ enum state{
 
 /* Globals */
 unsigned long int timer = 0;				// Timer, to be incremented every second?  or subdivision thereof
-long int lockTime = 0;						// Semi-Constant, for computing if lock requirement is met
-long int unlockTime = 0;					// Semi-Constant, for computing if unlock requirement is met
+unsigned long int lockTime = 0;				// Semi-Constant, for computing if lock requirement is met
+unsigned long int unlockTime = 0;			// Semi-Constant, for computing if unlock requirement is met
+char mask = 0x00;							// Bitmask.  Not finished yet, may change
 state currentState;							// ENUM to hold state for state machine
 
 /*
@@ -40,14 +40,15 @@ int main(void) {
 	ConfigureAdc();
 
 	/* Configure Timer */
-	TACTL = TASSEL_2 + MC_1 + ID_0 + TAIE;	// Source: SMCLK/1, Mode: UP-MODE, Interrupts Enabled
-	TACCRO = 73-1;							// ~450Hz
+	TACTL = TASSEL_2 + MC_2 + ID_3 + TAIE;	// Source: SMCLK/4, Mode: UP/DOWN-MODE, Interrupts Enabled
+	TACCRO = 32768;							// Counts up to 32768, then back down
+	//CCR0 = 3 seconds						// Capture/Compare register, but timer keeps counting up.
 
 	/* Configure Interrupts */
 	P1IES |=0x06;							// Set High->Low transition
 	P1IE |= 0x06;							// Enable interrupts for P1.1 and P1.2
 	P1IFG &= 0xF9;							// Clear Pending Interrupts
-	TACCTL0 = CCIE;							// CCR0 interrupt enabled
+	TACCTL0 = CCIE;							// CCR0 interrupt enabled (interrupt at peak and trough)
 
 	/* Set servo to latched position */
 	//TODO the above
@@ -136,29 +137,37 @@ __interrupt void ADC10_ISR (void){
 	}
 }
 
+//TODO latch/unlatch functions
 void unlatch(state power){
 	state = power;
 	/* Pull Latch as far back as possible */
 	//15 32768Hz Periods
 	//repeated at 450Hz (73 periods)
-	pwm(15);
+
 }
 
 void latch(){
 	state = LATCHED;
 	/* Undo whatever output is done in unlatch */
 	//43 32768Hz Periods
-	pwm(43)
+	//repeated at 450Hz (73 periods)
 }
 
-void pwm(int pulseWidth){
-	/* Function to generate PWM on an output pin */
-	CCR0 = 73-1;						// PWM Period (needs to be ~450Hz)
-	CCTL1 = OUTMOD_7;					// CCR1 reset/set
-	if(pulseWidth < CCR0){				// Check that our pulses are valid width
-		CCR1 = pulseWidth;				// CCR1 PWM duty cycle
-	}else{
-		CCR1 = CCR0/2;					// Default 50% duty cycle
+/* absolute value */
+int abs(int i){
+	if(i < 0){
+		i *= -1;
 	}
-	TACTL = TASSEL_2 + MC_1;			// SMCLK, up mode (should be 32768 Hz)
+	return i;
+}
+
+
+void pwm(int pulseWidth){
+	P1DIR |= BIT6;             // P1.6 to output
+	P1SEL |= BIT6;             // P1.6 to TA0.1
+
+	CCR0 = 1000-1;             // PWM Period
+	CCTL1 = OUTMOD_7;          // CCR1 reset/set
+	CCR1 = 250;                // CCR1 PWM duty cycle
+	TACTL = TASSEL_2 + MC_1;   // SMCLK, up mode
 }

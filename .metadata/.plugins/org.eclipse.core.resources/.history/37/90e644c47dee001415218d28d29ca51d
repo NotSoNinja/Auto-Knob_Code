@@ -3,10 +3,9 @@
 /* Constants */
 #define LOCK_TIME 1346						// Time in timer periods (450Hz)
 #define UNLOCK_TIME 2244					// Time in timer periods (450Hz)
-#define INT_SENSOR 0x04						// P1.2 is the Interior Sensor
-#define EXT_SENSOR 0x02						// P1.1 is the Exterior Sensor
-#define SERVO 0x40							// P1.6 (TA0.1) is the Servo
-#define BAT_MONITOR 0x01					// P1.0 is the Battery Voltage Monitor
+#define INT_SENSOR 0x04;					// P1.2 is the Interior Sensor
+#define EXT_SENSOR 0x02;					// P1.1 is the Exterior Sensor
+#define BAT_MONITOR 0x01;					// P1.0 is the Battery Voltage Monitor
 
 enum state{
 	LOCKED, UNLOCKED, LATCHED, LOW_POWER;
@@ -136,23 +135,34 @@ __interrupt void ADC10_ISR (void){
 	}
 }
 
+//TODO latch/unlatch functions
 void unlatch(state power){
 	state = power;
 	/* Pull Latch as far back as possible */
 	//15 32768Hz Periods
 	//repeated at 450Hz (73 periods)
-	pwm(15);
+
 }
 
 void latch(){
 	state = LATCHED;
 	/* Undo whatever output is done in unlatch */
 	//43 32768Hz Periods
-	pwm(43)
+	//repeated at 450Hz (73 periods)
 }
+
+/* absolute value */
+int abs(int i){
+	if(i < 0){
+		i *= -1;
+	}
+	return i;
+}
+
 
 void pwm(int pulseWidth){
 	/* Function to generate PWM on an output pin */
+
 	CCR0 = 73-1;						// PWM Period (needs to be ~450Hz)
 	CCTL1 = OUTMOD_7;					// CCR1 reset/set
 	if(pulseWidth < CCR0){				// Check that our pulses are valid width

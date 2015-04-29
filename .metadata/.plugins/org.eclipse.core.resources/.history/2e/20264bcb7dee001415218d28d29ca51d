@@ -136,6 +136,7 @@ __interrupt void ADC10_ISR (void){
 	}
 }
 
+//TODO latch/unlatch functions
 void unlatch(state power){
 	state = power;
 	/* Pull Latch as far back as possible */
@@ -153,6 +154,7 @@ void latch(){
 
 void pwm(int pulseWidth){
 	/* Function to generate PWM on an output pin */
+
 	CCR0 = 73-1;						// PWM Period (needs to be ~450Hz)
 	CCTL1 = OUTMOD_7;					// CCR1 reset/set
 	if(pulseWidth < CCR0){				// Check that our pulses are valid width
