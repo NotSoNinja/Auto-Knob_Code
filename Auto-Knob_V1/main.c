@@ -9,14 +9,15 @@
 #define LED 0x08							// P2.3 is the (blue) LED
 #define BAT_MONITOR 0x01					// P1.0 is the Battery Voltage Monitor
 
-enum state{
-	LOCKED, UNLOCKED, LATCHED, LOW_POWER;
-};
+typedef enum{
+	LOCKED, UNLOCKED, LATCHED, LOW_POWER
+} state;
 
 /* Globals */
 unsigned long int timer = 0;				// Timer, to be incremented every second?  or subdivision thereof
 long int lockTime = 0;						// Semi-Constant, for computing if lock requirement is met
 long int unlockTime = 0;					// Semi-Constant, for computing if unlock requirement is met
+long int latchTime = 0;						// Semi-Constant, for re-latching the door
 state currentState;							// ENUM to hold state for state machine
 
 /* Function Stubs for the Betterment of Humanity */
@@ -49,7 +50,7 @@ int main(void) {
 
 	/* Configure Timer */
 	TACTL = TASSEL_2 + MC_1 + ID_0 + TAIE;	// Source: SMCLK/1, Mode: UP-MODE, Interrupts Enabled
-	TACCRO = 73-1;							// ~450Hz
+	TACCR0 = 73-1;							// ~450Hz
 
 	/* Configure Interrupts */
 	P1IES |=0x06;							// Set High->Low transition
@@ -62,7 +63,7 @@ int main(void) {
 
 	/* Low Power Mode and Global Settings */
 	_BIS_SR(GIE);							// Global Interrupt Enable
-//	_BIS_SR(LPM0_bits);						// Enter Low Power Mode
+	//	_BIS_SR(LPM0_bits);						// Enter Low Power Mode
 	//TODO enter low power mode here
 
 	while(1){
@@ -94,6 +95,7 @@ __interrupt void Port_1(void){
 		}
 	}else{
 		/* check timers */
+		//interior sensor
 		if((P1IN & 0x02)){
 			if(lockTime && (timer - lockTime >= LOCK_TIME)){
 				currentState = LOCKED;		// Set the lock toggle
@@ -102,14 +104,14 @@ __interrupt void Port_1(void){
 			}
 			lockTime = 0;
 		}
+		//exterior sensor
 		if((currentState == LATCHED) && (P1IN & 0x04)){
 			unlatch(UNLOCKED);
 		}else if((P1IN & 0x04) && currentState == LOCKED){
 			if(unlockTime && (timer - unlockTime >= UNLOCK_TIME)){
-				unlatch(UNLOCKED);
-				currentState = 0;		// Reset the lock toggle
+				unlatch(UNLOCKED);		// Reset the lock toggle
 			}else{
-										//Door remains locked
+				//Door remains locked
 			}
 			P2OUT &= ~LED;				// Turn the LED off
 			unlockTime = 0;
@@ -123,16 +125,31 @@ __interrupt void Port_1(void){
 __interrupt void Timer_A (void){
 	timer++;
 	/* Reset the timer and check battery at the same time. */
-	if(timer > 54000){
+	if(timer > 270000){		// counts a minute
 		/* Account for running timers */
 		if(lockTime){
-			locktime -= timer;
+			lockTime -= timer;
 		}
 		if(unlockTime){
 			unlockTime -= timer;
 		}
+		if(latchTime){
+			latchTime -= timer;
+		}
 		timer = 0;
 		ADC10CTL0 |= ADC10SC;
+	}
+	/* Re-latch a recently-opened door */
+	if(latchTime){
+		if(timer - latchTime > LOCK_TIME){
+			latch();
+		}else if(timer - latchTime > UNLOCK_TIME){
+			//Door is considered latched
+			latchTime = 0;
+			//Turn off pwm
+			P1DIR &= ~SERVO;             				// P1.6 to input (Package pin 14)
+			P1SEL &= ~SERVO;             				// P1.6 to anything but TA0.1
+		}
 	}
 }
 
@@ -141,21 +158,25 @@ __interrupt void Timer_A (void){
 __interrupt void ADC10_ISR (void){
 	ADC10CTL0 &= ~ADC10IFG;				// Clear Interrupt Flag
 	/* Check if low battery voltage */
-	if(ADC10MEM < 0x00){
+	//TODO actual value for this
+	if(ADC10MEM < 0x1A6){
 		unlatch(LOW_POWER);				// If low battery, unlatch permanently
 	}
 }
 
 void unlatch(state power){
-	state = power;
-	/* Pull Latch as far back as possible */
+	currentState = power;
+	/* Pull Latch as far back as necessary */
 	//15 32768Hz Periods
 	//repeated at 450Hz (73 periods)
 	pwm(15);
+	if(power != LOW_POWER){
+		latchTime = timer;		// Prepare to re-latch
+	}
 }
 
 void latch(){
-	state = LATCHED;
+	currentState = LATCHED;
 	/* Undo whatever output is done in unlatch */
 	//43 32768Hz Periods
 	pwm(43);
@@ -163,6 +184,8 @@ void latch(){
 
 void pwm(int pulseWidth){
 	/* Function to generate PWM on an output pin */
+	P1DIR |= SERVO;             		// P1.6 to output (Package pin 14)
+	P1SEL |= SERVO;             		// P1.6 to TA0.1
 	CCR0 = 73-1;						// PWM Period (needs to be ~450Hz)
 	CCTL1 = OUTMOD_7;					// CCR1 reset/set
 	if(pulseWidth < CCR0){				// Check that our pulses are valid width
