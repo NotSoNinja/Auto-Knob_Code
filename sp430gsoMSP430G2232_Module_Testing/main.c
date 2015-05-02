@@ -1,21 +1,52 @@
 #include <msp430.h>
 #include "P1Interrupt.h"
 
+#define SERVO BIT6							// P1.6 (TA0.1) is the Servo
+
 void configureAdc();
 
-int timer = 0;
+long int timer = 0;
+
+void pwm(int pulseWidth);
 
 int main(void) {
-	WDTCTL = WDTPW | WDTHOLD;		// Stop watchdog timer
-	configureP1Interrupts();
+	WDTCTL = WDTPW | WDTHOLD;				// Stop watchdog timer
+
+	/* Configure Output Pins */
+	P1DIR |= SERVO;             			// P1.6 to output (Package pin 14)
+	P1SEL |= SERVO;             			// P1.6 to TA0.1
+	P1DIR |= BIT0;							// Set P1.0 to output direction
+	P1SEL &= ~BIT3;							// Button on P1.3
+	P1DIR &= ~BIT3;
+	P1REN |= BIT3;
+	P1OUT |= BIT3;
+	/* Demonstrate code is running */
+	P1OUT |= 0x01;							// Toggle P1.0
+	int i;
+	for(i = 0; i < 4000; i--){
+		//wait
+	}
+	P1OUT &= ~BIT0;							// Toggle P1.0
+
+	/* Configure Interrupts */
+	P1IES |= BIT3;							// Set High->Low transition
+	P1IE |= BIT3;							// Enable interrupts for P1.1 and P1.2
+	P1IFG &= ~BIT3;							// Clear Pending Interrupts
+
 	configureAdc();
+
 	/* Configure Timer */
-	TACTL = TASSEL_2 + MC_2 + ID_3 + TAIE;	// Source: SMCLK/4, Mode: UP/DOWN-MODE, Interrupts Enabled
-	TACCR0 = 0xFF;							// Counts up to 32768, then back down
+	TACTL = TASSEL_2 + MC_1 + ID_0 + TAIE;	// Source: SMCLK/1, Mode: UP-MODE, Interrupts Enabled
+	TACCR0 = 73-1;							// ~450Hz
+	TACCTL0 = CCIE;							// CCR0 interrupt enabled (hopefully not CCR1)
 
-	//CCR0 = 13534;						// Capture/Compare register, but timer keeps counting up.
+	//CCR0 = 13534;							// Capture/Compare register, but timer keeps counting up.
 	_BIS_SR(GIE);
+	//_BIS_SR(LPM0_bits);
 
+	while(1){
+		//wait?
+	}
 
 	return 0;
 }
@@ -23,7 +54,7 @@ int main(void) {
 void configureAdc(){
 	ADC10CTL1 = INCH_1 + ADC10DIV_3;         // Channel 0, ADC10CLK/3, Single-Channel/SingleConversion (Default)
 	ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON + ADC10IE;  // Vcc & Vss as reference, Sample and hold for 64 Clock cycles, ADC on, ADC interrupt enable
-	ADC10AE0 |= BIT1;                         // ADC input enable P1.0
+	ADC10AE0 |= BIT1;                         // ADC input enable P1.1
 }
 
 
@@ -32,7 +63,7 @@ void configureAdc(){
 __interrupt void Timer_A (void){
 	timer++;
 	/* Reset the timer and check battery at the same time. */
-	if(timer > 32768){
+	if(timer > 450){
 		timer = 0;
 		P1OUT ^= 0x01;
 //		ADC10CTL0 |= ADC10SC;
@@ -44,15 +75,20 @@ __interrupt void Timer_A (void){
 #pragma vector=ADC10_VECTOR
 __interrupt void ADC10_ISR (void){
 	//TODO Compare results from ADC10MEM < 0x00; (replace 0x00 with actual value before implementation)
-	P1OUT ^= 0x01;				// Toggle P1.0 using exclusive-OR
+	//P1OUT ^= 0x01;				// Toggle P1.0 using exclusive-OR
 }
 
 // Port 1 interrupt service routine
 #pragma vector=PORT1_VECTOR
 __interrupt void Port_1(void){
 	P1IFG &= ~BIT3;				// Clear Interrupt Flag
-	ADC10CTL0 |= ADC10SC + ENC;	//not working
-//	P1OUT ^= 0x01;				// Toggle P1.0 using exclusive-OR
+//	if(P1IES & BIT3){
+//		pwm(43);
+//	}else{
+//		pwm(15);
+//	}
+//	ADC10CTL0 |= ADC10SC + ENC;
+	P1OUT ^= 0x01;				// Toggle P1.0 using exclusive-OR
 	/* Process Inputs */
 //	if(!(P1IFG & 0x06)){
 //		/* start timers */
@@ -84,5 +120,19 @@ __interrupt void Port_1(void){
 //			unlockTime = 0;
 //		}
 //	}
-//	P1IES ^= BIT3;				// Toggle rising/falling edge
+	P1IES ^= BIT3;				// Toggle rising/falling edge
+}
+
+void pwm(int pulseWidth){
+	/* Function to generate PWM on an output pin */
+	P1DIR |= SERVO;             		// P1.6 to output (Package pin 14)
+	P1SEL |= SERVO;             		// P1.6 to TA0.1
+	CCR0 = 73-1;						// PWM Period (needs to be ~450Hz)
+	CCTL1 = OUTMOD_7;					// CCR1 reset/set
+	if(pulseWidth < CCR0){				// Check that our pulses are valid width
+		CCR1 = pulseWidth;				// CCR1 PWM duty cycle
+	}else{
+		CCR1 = CCR0/2;					// Default 50% duty cycle
+	}
+	TACTL = TASSEL_2 + MC_1;			// SMCLK, up mode (should be 32768 Hz)
 }

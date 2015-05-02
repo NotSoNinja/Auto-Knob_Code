@@ -75,7 +75,7 @@ int main(void) {
 
 void ConfigureAdc(void){
 	ADC10CTL1 = INCH_0 + ADC10DIV_3;         // Channel 0, ADC10CLK/3, Single-Channel/SingleConversion (Default)
-	ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON + ADC10IE + ENC;  // Vcc & Vss as reference, Sample and hold for 64 Clock cycles, ADC on, ADC interrupt enable, enable conversion
+	ADC10CTL0 = SREF_0 + ADC10SHT_3 + ADC10ON + ADC10IE;  // Vcc & Vss as reference, Sample and hold for 64 Clock cycles, ADC on, ADC interrupt enable, enable conversion
 	ADC10AE0 |= BIT0;                         // ADC input enable P1.0
 }
 
@@ -137,7 +137,7 @@ __interrupt void Timer_A (void){
 			latchTime -= timer;
 		}
 		timer = 0;
-		ADC10CTL0 |= ADC10SC;
+		ADC10CTL0 |= ADC10SC + ENC;
 	}
 	/* Re-latch a recently-opened door */
 	if(latchTime){
