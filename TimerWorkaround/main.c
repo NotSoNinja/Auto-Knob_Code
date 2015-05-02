@@ -1,8 +1,11 @@
 #include <msp430.h> 
 
+//TimerWorkaround
 
 void pwm(int pulseWidth);
-void squashPWM();
+void runTimerA0();
+void stopTimerA0();
+
 char mask = 0;
 long int timer = 0;
 
@@ -88,7 +91,7 @@ __interrupt void Port_1(void){
 }
 
 // Timer A0 interrupt service routine
-#pragma vector=TIMERA0_VECTOR
+#pragma vector=TIMER0_A0_VECTOR
 __interrupt void Timer_A (void){
 	timer++;
 	/* Reset the timer and check battery at the same time. */

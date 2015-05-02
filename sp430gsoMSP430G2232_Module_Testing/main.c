@@ -1,6 +1,8 @@
 #include <msp430.h>
 #include "P1Interrupt.h"
 
+//Testing code
+
 #define SERVO BIT6							// P1.6 (TA0.1) is the Servo
 
 void configureAdc();
@@ -16,10 +18,10 @@ int main(void) {
 	P1DIR |= SERVO;             			// P1.6 to output (Package pin 14)
 	P1SEL |= SERVO;             			// P1.6 to TA0.1
 	P1DIR |= BIT0;							// Set P1.0 to output direction
-	P1SEL &= ~BIT3;							// Button on P1.3
-	P1DIR &= ~BIT3;
-	P1REN |= BIT3;
-	P1OUT |= BIT3;
+	P1SEL &= ~(BIT3 + BIT2 + BIT1);							// Button on P1.3
+	P1DIR &= ~(BIT3 + BIT2 + BIT1);
+	P1REN |= BIT3 + BIT2 + BIT1;
+	P1OUT |= BIT3 + BIT2 + BIT1;
 	/* Demonstrate code is running */
 	P1OUT |= 0x01;							// Toggle P1.0
 	int i;
