@@ -60,16 +60,18 @@ int main(void) {
     	}
     	P2OUT &= ~LED;							// Toggle P1.0
 
-    	_BIS_SR(LPM0_bits + GIE);        		// Enter LPM0
-
-//    	while(1){
-//    		if(P1IN & BIT3){
-//    			pwm(1238);
-//    		}else{
-//    			pwm(428);
-//    		}
-//    	}
-
+    	while(currentState != LOW_POWER){
+    		_BIS_SR(LPM0_bits + GIE);        		// Enter LPM0
+    	}
+    	_BIC_SR(GIE);							// Interrupts DISABLED.  (Welcome to the jungle).
+    	for(i = 0; i < 30000; i++){
+    		if(!(i % 500)){
+    			P2OUT ^= BIT3;
+    		}
+    	}
+    	P2OUT &= ~BIT3;							//Turns the LED off
+    	P1DIR &= ~BIT6;             		// P1.6 to output (Package pin 14)
+    	P1SEL &= ~BIT6;             		// P1.6 to TA0.1
 	return 0;
 }
 
@@ -151,10 +153,6 @@ __interrupt void Port_1(void){
 #pragma vector=TIMER0_A0_VECTOR
 __interrupt void Timer_A (void){
 	timer++;
-	/* Reset the timer and check battery at the same time. */
-//	if(lockTime){
-//		lockTime++;
-//	}
 	if(timer > 138600){	//10 minutes-ish
 		if(lockTime){
 			lockTime -= timer;
@@ -168,6 +166,10 @@ __interrupt void Timer_A (void){
 		timer = 0;
 		ADC10CTL0 |= ADC10SC + ENC;				// Start an ADC conversion to check battery voltage
 	}
+	// TESTING STATEMENT ONLY REMOVE FROM FINAL BUILD
+//	if(timer % 231){
+//		ADC10CTL0 |= ADC10SC + ENC;				// Start an ADC conversion to check battery voltage
+//	}
 	if(currentState != LOCKED && (mask & BIT2) && (timer - lockTime > LOCK_TIME)){
 		P2OUT |= LED;
 		lockTime = 0;
@@ -209,14 +211,15 @@ __interrupt void Timer_A (void){
 __interrupt void ADC10_ISR (void){
 	ADC10CTL0 &= ~ADC10IFG;						// Clear Interrupt Flag
 	/* Check if low battery voltage */
-	if(ADC10MEM < 0x1A6){						// 0x01A6 = 422 (~5V)
-		P1DIR |= BIT6;             			// P1.6 to output (Package pin 14)
-		P1SEL |= BIT6;             			// P1.6 to TA0.1
-		CCR0 = 4113;						// PWM Period (needs to be ~450Hz)  2113
-		CCTL1 = OUTMOD_7;					// CCR1 reset/set
-		CCR1 = 428;
-		TACTL = TASSEL_2 + MC_1;			// SMCLK, up mode (should be 32768 Hz)
-		currentState = LOW_POWER;						// If low battery, unlatch permanently
+	if(ADC10MEM < 0x150){						// 0x01A6 = 422 (~5V)
+		P1DIR |= BIT6;             				// P1.6 to output (Package pin 14)
+		P1SEL |= BIT6;             				// P1.6 to TA0.1
+		CCR0 = 4113;							// PWM Period (needs to be ~450Hz)  2113
+		CCTL1 = OUTMOD_7;						// CCR1 reset/set
+		CCR1 = 428;								// Pulse width for open
+		TACTL = TASSEL_2 + MC_1;				// SMCLK, up mode (should be 32768 Hz)
+		currentState = LOW_POWER;				// If low battery, unlatch permanently
+		_BIC_SR(LPM0_EXIT); 					// wake up from low power mode so code will exit
 	}
 }
 
